@@ -24,16 +24,19 @@ function selection(quality) {
 }
 function downloadArgs(job, tools) {
   const key=crypto.createHash('sha256').update(job.url+'|'+job.quality).digest('hex').slice(0,8);
-  const args=['--ignore-config','--no-playlist','--no-colors','--newline','--windows-filenames','--no-overwrites','--socket-timeout','20','--retries','3','--ffmpeg-location',tools,'--js-runtimes',`node:${path.join(tools,'node.exe')}`,
+  const titleTemplate=job.outputTitle?job.outputTitle.replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').slice(0,110).replace(/%/g,'%%'):'%(title).120B';
+  const args=['--ignore-config','--encoding','utf-8','--no-playlist','--no-colors','--newline','--windows-filenames','--no-overwrites','--socket-timeout','20','--retries','3','--ffmpeg-location',tools,'--js-runtimes',`node:${path.join(tools,'node.exe')}`,
     '--progress-template','download:VL_PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
-    '--print','before_dl:VL_TITLE:%(title)s','--print','after_move:VL_FILE:%(filepath)s',
-    '-o',path.join(job.folder,`%(title).120B [%(id).40B-${job.quality}-${key}].%(ext)s`),...selection(job.quality)];
+    '--print','before_dl:VL_TITLE_JSON:%(title)j','--print','after_move:VL_FILE_JSON:%(filepath)j',
+    '-o',path.join(job.folder,`${titleTemplate} [%(id).40B-${job.quality.replace(/[^\w-]/g,'').slice(0,30)}-${key}].%(ext)s`),...(job.format?['-f',job.format,'--merge-output-format','mp4/mkv']:selection(job.quality))];
   if(job.referer) args.push('--referer',validUrl(job.referer));
   if(job.userAgent) args.push('--user-agent',job.userAgent);
   if(job.cookieFile) args.push('--cookies',job.cookieFile);
   args.push('--',validUrl(job.url)); return args;
 }
 function parseLine(line) {
+  if(line.startsWith('VL_TITLE_JSON:')) {try{return {title:JSON.parse(line.slice(14))};}catch{return null;}}
+  if(line.startsWith('VL_FILE_JSON:')) {try{return {file:JSON.parse(line.slice(13))};}catch{return null;}}
   if(line.startsWith('VL_TITLE:')) return {title:line.slice(9)};
   if(line.startsWith('VL_FILE:')) return {file:line.slice(8)};
   if(line.startsWith('VL_PROGRESS:')) {const [p,speed,eta]=line.slice(12).split('|');return {percent:Math.min(100,Math.max(0,parseFloat(p)||0)),speed:speed?.trim(),eta:eta?.trim()};}
