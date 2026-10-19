@@ -1,0 +1,1 @@
+const {contextBridge,ipcRenderer}=require('electron');contextBridge.exposeInMainWorld('browser',{action:(a,u)=>ipcRenderer.invoke('browserAction',a,u),onLocation:f=>ipcRenderer.on('location',(_,u)=>f(u))});
