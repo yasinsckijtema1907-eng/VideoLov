@@ -1,0 +1,16 @@
+{
+  "ytDlp": "2026.08.19",
+  "ffmpeg": "9.0.2",
+  "node": "v24.15.0",
+  "source": {
+    "ytDlp": "https://github.com/yt-dlp/yt-dlp/releases/tag/2026.08.19",
+    "ffmpeg": "https://github.com/GyanD/codexffmpeg/releases/tag/9.0.2",
+    "node": "https://nodejs.org/dist/v24.15.0/"
+  },
+  "sha256": {
+    "yt-dlp.exe": "66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a",
+    "ffmpeg.exe": "3256173f3f8bffd7df12227c68adf68025edb1832273a9530688a7bb1ed8edec",
+    "ffprobe.exe": "f0d36ecbbdd3bcfac3efa078c96c7271c2e68b3810595552ac3b7f17e9a65c52",
+    "node.exe": "3331e1ffe19874215472217c5e94f5a0c6d8e18c4ac7111d3937aa0ad5e9b4a5"
+  }
+}
