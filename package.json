@@ -1,6 +1,6 @@
 {
   "name": "videolov",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "ВидеоЛов — загрузчик видео и поиск потоков для Windows",
   "main": "app/main.js",
   "author": "M0904sha",
