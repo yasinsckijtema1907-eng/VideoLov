@@ -11,3 +11,7 @@ The installed application aggregates independent command-line tools. Their notic
 - Node.js: MIT and third-party licenses. Complete license: `tools/node-LICENSE.txt`. Exact runtime and checksum: `tools/versions.json`. Source: https://github.com/nodejs/node
 
 Build-only dependencies are recorded in `package-lock.json`; their licenses remain in their respective packages. They are not claimed as M0904sha's work.
+
+## Mozilla CA bundle
+
+The bundled `tools/cacert.pem` is extracted from Mozilla by curl, distributed under MPL 2.0. Source and updates: https://curl.se/docs/caextract.html ; license: `tools/cacert-LICENSE.txt`. SHA-256 is verified against curl's published checksum and recorded in `tools/versions.json`. FFmpeg/FFprobe use this bundle with TLS certificate verification enabled.
