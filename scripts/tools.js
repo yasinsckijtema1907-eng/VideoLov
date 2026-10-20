@@ -6,6 +6,7 @@ async function get(url,file){const r=await fetch(url,{headers});if(!r.ok)throw E
 function hash(data){return crypto.createHash('sha256').update(data).digest('hex');}
 async function unzip(zip,folder){await require('extract-zip')(path.join(root,zip),{dir:path.join(root,folder)});}
 (async()=>{
+  const ca=await get('https://curl.se/ca/cacert.pem','cacert.pem');const caSum=(await get('https://curl.se/ca/cacert.pem.sha256')).toString().trim().split(/\s/)[0];if(hash(ca)!==caSum)throw Error('CA bundle checksum mismatch');await get('https://www.mozilla.org/media/MPL/2.0/index.txt','cacert-LICENSE.txt');
   const release=JSON.parse(await get('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest'));
   const sums=(await get(`https://github.com/yt-dlp/yt-dlp/releases/download/${release.tag_name}/SHA2-256SUMS`)).toString();
   const ytdlp=await get(`https://github.com/yt-dlp/yt-dlp/releases/download/${release.tag_name}/yt-dlp.exe`,'yt-dlp.exe');
@@ -22,7 +23,7 @@ async function unzip(zip,folder){await require('extract-zip')(path.join(root,zip
   const nodeVersion=process.version;const node=await get(`https://nodejs.org/dist/${nodeVersion}/win-x64/node.exe`,'node.exe');
   const nodeSums=(await get(`https://nodejs.org/dist/${nodeVersion}/SHASUMS256.txt`)).toString();const expected=nodeSums.split('\n').find(l=>l.endsWith('win-x64/node.exe'))?.split(/\s/)[0];if(expected!==hash(node))throw Error('Node checksum mismatch');
   await get(`https://raw.githubusercontent.com/nodejs/node/${nodeVersion}/LICENSE`,'node-LICENSE.txt');
-  fs.writeFileSync(path.join(root,'versions.json'),JSON.stringify({ytDlp:release.tag_name,ffmpeg:ff.tag_name,node:nodeVersion,source:{ytDlp:release.html_url,ffmpeg:ff.html_url,node:`https://nodejs.org/dist/${nodeVersion}/`},sha256:Object.fromEntries(['yt-dlp','ffmpeg','ffprobe','node'].map(n=>[n+'.exe',hash(fs.readFileSync(path.join(root,n+'.exe')))]))},null,2));
+  fs.writeFileSync(path.join(root,'versions.json'),JSON.stringify({caBundle:{source:'https://curl.se/docs/caextract.html',sha256:hash(ca)},ytDlp:release.tag_name,ffmpeg:ff.tag_name,node:nodeVersion,source:{ytDlp:release.html_url,ffmpeg:ff.html_url,node:`https://nodejs.org/dist/${nodeVersion}/`},sha256:Object.fromEntries(['yt-dlp','ffmpeg','ffprobe','node'].map(n=>[n+'.exe',hash(fs.readFileSync(path.join(root,n+'.exe')))]))},null,2));
   // Keep extracted build/archive out of the application package.
   const scratch=path.resolve(root,'ffmpeg-build');if(path.dirname(scratch)!==path.resolve(root))throw Error('Unexpected scratch location');
   fs.rmSync(scratch,{recursive:true,force:true});fs.unlinkSync(path.join(root,'ffmpeg.zip'));console.log(fs.readFileSync(path.join(root,'versions.json'),'utf8'));
