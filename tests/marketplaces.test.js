@@ -6,3 +6,31 @@ test('Wildberries resolves public CDN, offers only responding playlists, never i
 test('Watermark-free published variant wins, DRM and images are not media',()=>{const v={formats:[{height:720,url:'https://c/v.mp4',filesize:999,watermarked:true},{height:720,url:'https://c/original.mp4',filesize:100,watermarked:false}]};assert.equal(offeredFormats(v)[0].url,'https://c/original.mp4');assert.equal(parseProductData({videos:[{url:'https://c/image.jpg'},{url:'https://c/v.mp4',drm:true}]},'https://www.ozon.ru/product/1/').length,0);assert.equal(siteKind('https://evilozon.ru/product/1'),null);});
 
 test('Captured live Ozon gallery retains both original videos and covers',()=>{const d=require('./fixtures/ozon-gallery.json');const r=parseProductData(d,'https://www.ozon.ru/product/3025956623/',d.title);assert.equal(r.length,2);assert(r.every(v=>v.thumbnail&&v.formats.length===1&&v.formats[0].url.includes('ozone.ru/vod/')));});
+
+test('Wildberries MP4-only real-card layout uses product ID for host and volume independently',async()=>{
+  const hosts=Array.from({length:60},(_,i)=>({host:`mow-videonme-cdn-${String((i+1)%60+1).padStart(2,'0')}.geobasket.ru`}));
+  const expected='https://mow-videonme-cdn-31.geobasket.ru/vol125/part16224/162246509/mp4/360p/1.mp4';
+  const requests=[];const fetcher=async(u,options={})=>{requests.push({u,...options});if(u.endsWith('/upstreams'))return {body:Buffer.from(JSON.stringify({recommend:{videonme_route_map:[{hosts}]}}))};if(u===expected&&options.method==='HEAD')return {type:'video/mp4',size:469329};throw Error('404');};
+  const videos=await discoverMarketplace('https://www.wildberries.ru/catalog/162246509/detail.aspx',fetcher);
+  assert.equal(videos.length,1);assert.equal(videos[0].formats.length,1);assert.equal(videos[0].formats[0].url,expected);assert.equal(videos[0].formats[0].filesize,469329);
+  assert(requests.filter(r=>r.u.includes('/mp4/')).every(r=>r.method==='HEAD'));
+});
+
+test('Wildberries does not offer an HTML error returned with status 200 as MP4',async()=>{
+  const fetcher=async u=>u.endsWith('/upstreams')?{body:Buffer.from(JSON.stringify({recommend:{videonme_route_map:[{hosts:[{host:'mow-videonme-cdn-01.geobasket.ru'}]}]}}))}:{body:Buffer.from('<html>Error</html>'),type:'text/html',size:200};
+  assert.equal((await discoverMarketplace('https://www.wildberries.ru/catalog/162246509/detail.aspx',fetcher)).length,0);
+});
+
+test('Measured dimensions replace CDN labels, and different clips are not interchangeable qualities',async()=>{
+  const {verifiedProductVideos}=require('../app/marketplaces');
+  const videos=[{id:'product',title:'Товар',formats:[{url:'https://cdn.test/1440.m3u8',height:1440,protocol:'m3u8_native'},{url:'https://cdn.test/360.mp4',height:360,protocol:'https'}]}];
+  const result=await verifiedProductVideos(videos,async u=>u.endsWith('.mp4')?{streams:[{codec_type:'video',codec_name:'h264',width:360,height:480}],format:{duration:'7.032'}}:{streams:[{codec_type:'video',codec_name:'h264',width:810,height:1080},{codec_type:'audio',codec_name:'aac'}],format:{duration:'82.752'}});
+  assert.equal(result.length,2);assert.equal(result[0].formats[0].height,480);assert.equal(result[1].formats[0].height,1080);assert.equal(result[0].duration,7.032);assert.equal(result[1].duration,82.752);
+  const unavailable=await verifiedProductVideos(videos,async()=>{throw Error('timeout')});assert(unavailable.every(v=>v.formats.every(f=>f.height===null)));
+});
+
+test('Plain HLS sample uses a real segment and total duration; encrypted or fragmented samples stay excluded',()=>{
+  const {hlsSample}=require('../app/marketplaces');const playlist='#EXTM3U\n#EXTINF:6.7\n1.ts\n#EXTINF:4.1\n2.ts\n#EXT-X-ENDLIST';
+  assert.deepEqual(hlsSample(playlist,'https://cdn.test/video/index.m3u8'),{url:'https://cdn.test/video/1.ts',duration:10.8});
+  for(const line of ['#EXT-X-KEY:METHOD=AES-128,URI="key"','#EXT-X-MAP:URI="init.mp4"','#EXT-X-STREAM-INF:BANDWIDTH=1000'])assert.equal(hlsSample(playlist+'\n'+line,'https://cdn.test/video/index.m3u8'),null);
+});
