@@ -35,11 +35,42 @@ async function discoverMarketplace(sourceUrl,fetchData){
   if(kind==='wildberries'){
     const id=new URL(sourceUrl).pathname.match(/\/catalog\/(\d+)\//)?.[1];if(!id)return videos;
     // Resolve current CDN hosts from Wildberries instead of freezing basket numbers.
-    try{const r=await fetchData('https://cdn.wbbasket.ru/api/v3/upstreams');const config=JSON.parse(r.body.toString('utf8'));const routes=config.recommend?.videonme_route_map||[];const hosts=routes.flatMap(x=>x.hosts||[]).filter(x=>/^[\w.-]+\.(?:geobasket|wbbasket)\.ru$/.test(x.host));if(!hosts.length)return videos;const vol=Number(BigInt(id)%144n),part=String(BigInt(id)/10000n),host=hosts[vol%hosts.length].host;
-      const results=await Promise.allSettled([2160,1440,1080,720,480,360].map(async height=>{const link=`https://${host}/vol${vol}/part${part}/${id}/hls/${height}p/index.m3u8`;const response=await fetchData(link,{referer:sourceUrl,limit:1000000});if(!response.body.toString('utf8').trimStart().startsWith('#EXTM3U'))throw Error('Not a playlist');return {id:String(height),url:link,height,ext:'mp4',protocol:'m3u8_native',vcodec:'unknown',acodec:'unknown'};}));const formats=results.filter(r=>r.status==='fulfilled').map(r=>r.value);if(formats.length)videos.push({id,title:'Wildberries · товар '+id,thumbnail:null,formats,pageUrl:sourceUrl,mode:'direct'});
+    try{const r=await fetchData('https://cdn.wbbasket.ru/api/v3/upstreams');const config=JSON.parse(r.body.toString('utf8'));const routes=config.recommend?.videonme_route_map||[];const hosts=routes.flatMap(x=>x.hosts||[]).filter(x=>/^[\w.-]+\.(?:geobasket|wbbasket)\.ru$/.test(x.host));if(!hosts.length)return videos;const vol=Number(BigInt(id)%144n),part=String(BigInt(id)/10000n),host=hosts[Number(BigInt(id)%BigInt(hosts.length))].host;
+      const base=`https://${host}/vol${vol}/part${part}/${id}`;
+      const results=await Promise.allSettled([2160,1440,1080,720,480,360].map(async height=>{
+        const format={id:String(height),height,ext:'mp4',vcodec:'unknown',acodec:'unknown'};
+        try{const link=`${base}/hls/${height}p/index.m3u8`;const response=await fetchData(link,{referer:sourceUrl,limit:1000000});if(!response.body.toString('utf8').trimStart().startsWith('#EXTM3U'))throw Error('Not a playlist');return {...format,url:link,protocol:'m3u8_native'};}catch{}
+        // Some real cards publish MP4 only. HEAD validates the actual variant
+        // without downloading six full videos or inventing unavailable qualities.
+        const link=`${base}/mp4/${height}p/1.mp4`,response=await fetchData(link,{referer:sourceUrl,method:'HEAD'});
+        if(!/^video\/mp4(?:;|$)/i.test(response.type)||!(response.size>0))throw Error('Not an MP4 video');
+        return {...format,url:link,protocol:'https',filesize:response.size};
+      }));const formats=results.filter(r=>r.status==='fulfilled').map(r=>r.value);if(formats.length)videos.push({id,title:'Wildberries · товар '+id,thumbnail:null,formats,pageUrl:sourceUrl,mode:'direct'});
     }catch{}
   }
   return videos;
 }
 function hlsVariants(text,base){if(!String(text).trimStart().startsWith('#EXTM3U'))return [];if(/SAMPLE-AES|KEYFORMAT="(?!identity)/i.test(text))return [];const lines=text.split(/\r?\n/),formats=[];for(let i=0;i<lines.length;i++){if(!lines[i].startsWith('#EXT-X-STREAM-INF:'))continue;const dims=lines[i].match(/RESOLUTION=(\d+)x(\d+)/);let next=i+1;while(next<lines.length&&(!lines[next].trim()||lines[next].startsWith('#')))next++;const link=url(lines[next],base);if(link)formats.push({id:'hls-'+formats.length,url:link,width:+dims?.[1]||null,height:+dims?.[2]||null,ext:'mp4',protocol:'m3u8_native',vcodec:'unknown',acodec:'unknown'});}return formats;}
-module.exports={siteKind,decode,parseProductData,structuredHtml,discoverMarketplace,hlsVariants};
+async function verifiedProductVideos(videos,inspect){
+  const result=[];
+  for(const video of videos){
+    const measured=await Promise.all(video.formats.map(async f=>{
+      try{const d=await inspect(f.url),s=d.streams.find(s=>s.codec_type==='video');if(!s)throw Error('No video');return {...f,height:s.height,width:s.width,vcodec:s.codec_name||'unknown',acodec:d.streams.find(s=>s.codec_type==='audio')?.codec_name||'none',duration:+d.format.duration||null};}
+      catch{return {...f,height:null,width:null,duration:null};}
+    }));
+    // CDN folder labels can differ from encoded resolution. MP4 and HLS for
+    // the same product can even be different clips; never present them as
+    // interchangeable qualities when their measured durations disagree.
+    measured.sort((a,b)=>Number(/m3u8|dash/.test(a.protocol))-Number(/m3u8|dash/.test(b.protocol)));
+    const groups=[];for(const f of measured){const group=f.duration&&groups.find(g=>g.duration&&Math.abs(g.duration-f.duration)<1);if(group)group.formats.push(f);else groups.push({duration:f.duration,formats:[f]});}
+    groups.forEach((g,i)=>result.push({...video,...g,id:video.id+'-'+i,title:video.title+(groups.length>1?' · видео '+(i+1):'')}));
+  }
+  return result;
+}
+function hlsSample(text,base){
+  if(!String(text).trimStart().startsWith('#EXTM3U')||/#EXT-X-(?:KEY|STREAM-INF|MAP|BYTERANGE):/i.test(text))return null;
+  const lines=text.split(/\r?\n/).map(s=>s.trim()),segment=lines.find(s=>s&&!s.startsWith('#'));
+  const link=url(segment,base),duration=[...text.matchAll(/#EXTINF:([\d.]+)/g)].reduce((n,m)=>n+Number(m[1]),0);
+  return link&&duration?{url:link,duration}:null;
+}
+module.exports={siteKind,decode,parseProductData,structuredHtml,discoverMarketplace,hlsVariants,verifiedProductVideos,hlsSample};

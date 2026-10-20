@@ -7,7 +7,7 @@ function tab(name){document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!=
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
 function empty(container,text){container.replaceChildren(el('div','empty',text));}
-function duration(n){return n?Math.floor(n/60)+':'+String(Math.round(n%60)).padStart(2,'0'):'';}
+function duration(n){return n?Math.floor(Math.round(n)/60)+':'+String(Math.round(n)%60).padStart(2,'0'):'';}
 function size(n){return n?' · '+(n/1048576).toFixed(1)+' МБ':'';}
 const results=el('div','analysis-results');results.id='results';results.hidden=true;$('analysis').after(results);
 function syncDownload(){$('downloadButton').disabled=!current?.ready||!info||!selectedVideo||busy;$('quality').disabled=!info||busy;}
