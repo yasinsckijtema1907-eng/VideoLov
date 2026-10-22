@@ -140,7 +140,7 @@ async function browserOpen(url){
     privateSession.setPermissionCheckHandler(()=>false);
     privateSession.on('will-download',(event,item)=>{event.preventDefault();addMedia({url:item.getURL(),responseHeaders:{'content-type':[item.getMimeType()]}});});
     privateSession.webRequest.onHeadersReceived((d,cb)=>{addMedia(d);cb({});});
-    browserWin=new BrowserWindow({width:1100,height:780,title:'Браузер ВидеоЛов — включите видео на странице',backgroundColor:'#10151f',webPreferences:{preload:path.join(__dirname,'browser-preload.js'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
+    browserWin=new BrowserWindow({width:1100,height:780,title:'Браузер VideoLov — включите видео на странице',backgroundColor:'#10151f',webPreferences:{preload:path.join(__dirname,'browser-preload.js'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
     browserWin.loadFile(path.join(__dirname,'browser.html'));browserWin.webContents.on('will-navigate',e=>e.preventDefault());browserWin.webContents.setWindowOpenHandler(()=>({action:'deny'}));
     view=new WebContentsView({webPreferences:{session:privateSession,nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});browserWin.contentView.addChildView(view);
     const bounds=()=>{if(!browserWin?.isDestroyed()){const [width,height]=browserWin.getContentSize();view.setBounds({x:0,y:64,width,height:Math.max(0,height-64)});}};browserWin.on('resize',bounds);bounds();secureWeb(view.webContents);
@@ -158,12 +158,12 @@ app.whenReady().then(async()=>{
   app.setAppUserModelId('io.github.m0904sha.videolov');app.userAgentFallback=app.userAgentFallback.replace(/(?:Electron|videolov|VideoLov)\/[^\s]+\s?/g,'');storeFile=path.join(app.getPath('userData'),'state.json');
   try{store=JSON.parse(fs.readFileSync(storeFile,'utf8'));}catch{store={};}
   if(fs.existsSync(storeFile)&&!fs.existsSync(path.join(app.getPath('userData'),'state-before-1.1.0.json')))fs.copyFileSync(storeFile,path.join(app.getPath('userData'),'state-before-1.1.0.json'));
-  store.folder=store.folder||path.join(app.getPath('videos'),'ВидеоЛов');queue=Array.isArray(store.jobs)?store.jobs.slice(-100):[];
+  store.folder=store.folder||path.join(app.getPath('videos'),'VideoLov');queue=Array.isArray(store.jobs)?store.jobs.slice(-100):[];
   for(const j of queue){if(['queued','downloading'].includes(j.state))j.state='cancelled';delete j.cookieFile;}
   await recoverFinished();
   // Remove transient cookies after an interrupted session.
   for(const f of fs.readdirSync(app.getPath('userData')))if(/^cookies-[\w-]+\.txt$/.test(f))try{fs.unlinkSync(path.join(app.getPath('userData'),f));}catch{}
-  main=new BrowserWindow({width:1180,height:820,minWidth:960,minHeight:680,title:'ВидеоЛов',icon:path.join(__dirname,'icon.ico'),backgroundColor:'#0d111a',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  main=new BrowserWindow({width:1180,height:820,minWidth:960,minHeight:680,title:'VideoLov',icon:path.join(__dirname,'icon.ico'),backgroundColor:'#0d111a',webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   main.on('closed',()=>app.quit());
   ipcMain.handle('browserAction',async(e,action,url)=>{if(!browserWin||e.sender.id!==browserWin.webContents.id)throw Error('Доступ запрещён');if(action==='go')return browserOpen(url);if(action==='back'&&view.webContents.navigationHistory.canGoBack())view.webContents.navigationHistory.goBack();if(action==='forward'&&view.webContents.navigationHistory.canGoForward())view.webContents.navigationHistory.goForward();if(action==='return'){main.show();main.focus();}return browserUrl;});
   main.webContents.setWindowOpenHandler(()=>({action:'deny'}));main.webContents.on('will-navigate',e=>e.preventDefault());main.loadFile(path.join(__dirname,'index.html'));
