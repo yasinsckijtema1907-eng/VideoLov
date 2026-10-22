@@ -1,7 +1,7 @@
 {
   "name": "videolov",
-  "version": "1.2.1",
-  "description": "ВидеоЛов — загрузчик видео и поиск потоков для Windows",
+  "version": "1.2.2",
+  "description": "VideoLov — загрузчик видео и поиск потоков для Windows",
   "main": "app/main.js",
   "author": "M0904sha",
   "license": "GPL-3.0-or-later",
@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "io.github.m0904sha.videolov",
-    "productName": "ВидеоЛов",
+    "productName": "VideoLov",
     "executableName": "VideoLov",
     "copyright": "Copyright © 2026 M0904sha",
     "directories": {
@@ -48,7 +48,7 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "ВидеоЛов",
+      "shortcutName": "VideoLov",
       "artifactName": "VideoLov-Setup-${version}.exe",
       "include": "scripts/installer.nsh"
     }
